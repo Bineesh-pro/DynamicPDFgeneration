@@ -3,12 +3,13 @@ package com.bineesh.dynamicpdfgeneration.service;
 
 import com.bineesh.dynamicpdfgeneration.dto.Invoice;
 import com.bineesh.dynamicpdfgeneration.dto.Item;
+import com.bineesh.dynamicpdfgeneration.entity.PdfDetails;
+import com.bineesh.dynamicpdfgeneration.repo.PdfDetailsRepo;
 import com.itextpdf.text.*;
-import com.itextpdf.text.pdf.PdfDocument;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
-import org.springframework.orm.jpa.support.OpenEntityManagerInViewInterceptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -18,10 +19,26 @@ import java.util.List;
 @Service
 public class PdfGenerationService {
 
-    public String generatePdf(Invoice invoice){
+    @Autowired
+    PdfDetailsRepo pdfDetailsRepo;
+
+    public File generatePdf(Invoice invoice){
+
+        String detailsString = invoice.toString();
+        if(pdfDetailsRepo.existsByDetailsString(detailsString)){
+            PdfDetails pdfDetails = pdfDetailsRepo.findByDetailsString(detailsString);
+            long pdfId = pdfDetails.getPdfId();
+            return new File("src/main/resources/pdf_dir/"+pdfId+"_pdf.pdf");
+        }
 
         try{
-            File file = new File("sampleFile.pdf");
+            File pdfDir = new File("src/main/resources/pdf_dir");
+            if(!pdfDir.isDirectory() || !pdfDir.exists())
+                pdfDir.mkdir();
+            long currentTimeMillis = System.currentTimeMillis();
+            String pdfName = currentTimeMillis+"_pdf.pdf";
+            String filePath = "src/main/resources/pdf_dir/" + pdfName;
+            File file = new File(filePath);
             Document document = new Document();
             PdfWriter.getInstance(document, new FileOutputStream(file));
             document.open();
@@ -79,17 +96,15 @@ public class PdfGenerationService {
             }
 
             document.close();
-
+            pdfDetailsRepo.save(new PdfDetails(currentTimeMillis,pdfName,detailsString));
+            return file;
 
         }catch (Exception e){
             System.out.println(e.getMessage());
         }
 
 
-
-
-
-        return "generated";
+        return null;
 
     }
 
